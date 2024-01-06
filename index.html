@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Sound Generator</title>
+		<script>
+			window.onload = function () {
+				let audioCtx
+				let oscillator
+				let gainNode // GainNode variable
+				let isAudioContextStarted = false
+
+				const frequencySlider = document.getElementById('frequency')
+				const waveformSelector = document.getElementById('waveform')
+				const volumeSlider = document.getElementById('volume')
+				const canvas = document.getElementById('canvas')
+				const ctx = canvas.getContext('2d')
+
+				function getLinearFrequency() {
+					return Math.pow(10, frequencySlider.value)
+				}
+
+				volumeSlider.addEventListener('input', function () {
+					if (!isAudioContextStarted) {
+						isAudioContextStarted = true
+						startAudioContext()
+					}
+					gainNode.gain.value = this.value // Update the gain value
+				})
+
+				function startAudioContext() {
+					audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+					oscillator = audioCtx.createOscillator()
+					gainNode = audioCtx.createGain() // Create the GainNode
+
+					oscillator.type = waveformSelector.value
+					oscillator.frequency.setValueAtTime(getLinearFrequency(), audioCtx.currentTime)
+					oscillator.connect(gainNode).connect(audioCtx.destination) // Connect the oscillator to the gain node
+					gainNode.gain.value = volumeSlider.value // Set initial volume
+
+					oscillator.start()
+				}
+
+				frequencySlider.addEventListener('input', function () {
+					const frequency = getLinearFrequency()
+					if (isAudioContextStarted) {
+						oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime)
+					}
+					drawWaveform(frequency, waveformSelector.value)
+				})
+
+				waveformSelector.addEventListener('change', function () {
+					if (isAudioContextStarted) {
+						oscillator.type = this.value
+					}
+					drawWaveform(getLinearFrequency(), this.value)
+				})
+
+				function drawWaveform(frequency, type) {
+					ctx.clearRect(0, 0, canvas.width, canvas.height)
+					ctx.beginPath()
+					ctx.strokeStyle = 'cyan'
+					ctx.moveTo(0, canvas.height / 2)
+
+					const scaleFactor = frequency * 0.001
+					const amplitude = 40
+					let y
+
+					for (let i = 0; i < canvas.width; i++) {
+						switch (type) {
+							case 'sine':
+								y = canvas.height / 2 + Math.sin(i * scaleFactor) * amplitude
+								break
+							case 'square':
+								y = (Math.sign(Math.sin(i * scaleFactor)) * amplitude) + canvas.height / 2
+								break
+							case 'sawtooth':
+								y = ((i % (canvas.width / frequency)) / (canvas.width / frequency)) * amplitude * 2 - amplitude + canvas.height / 2
+								break
+							case 'triangle':
+								y = 2 * amplitude * Math.abs(2 * (i / (canvas.width / frequency) - Math.floor(i / (canvas.width / frequency) + 0.5))) - amplitude + canvas.height / 2
+								break
+						}
+						ctx.lineTo(i, y)
+					}
+					ctx.stroke()
+				}
+
+				// Initial drawing
+				drawWaveform(getLinearFrequency(), waveformSelector.value)
+			}
+
+		</script>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				height: 100vh;
+				margin: 0;
+				background-color: #444;
+				color: #fff;
+			}
+
+
+			div {
+				margin: 10px;
+			}
+
+			h1 {
+				margin: 10px;
+				text-align: center;
+			}
+
+			.main {
+				background-color: #555;
+				border-radius: 5px;
+				display: flex;
+				flex-direction: column;
+				padding: 10px;
+				box-shadow: rgba(0, 0, 0, 0.25) 0px 6px 12px -2px, rgba(0, 0, 0, 0.3) 0 3px 7px -3px;
+			}
+
+			.control-group {
+				display: grid;
+				grid-template-columns: auto auto;
+				align-items: center;
+				gap: 10px;
+				margin-bottom: 10px;
+			}
+
+			input[type=range] {
+				width: 300px;
+				margin: 5px;
+			}
+
+			select {
+				padding: 5px;
+				margin: 5px;
+				border: none;
+				background-color: #333;
+				color: #fff;
+				border-radius: 5px;
+			}
+
+			canvas {
+				border-radius: 5px;
+				background-color: #333;
+			}
+
+		</style>
+	</head>
+	<body>
+		<div class="main">
+			<h1>Sound Generator</h1>
+			<div class="control-group">
+				<label for="volume">Volume:</label>
+				<input type="range" id="volume" min="0" max="1" value="0" step="0.01">
+				<label for="frequency">Frequency:</label>
+				<input type="range" id="frequency" min="1" max="3" value="2.643856" step="0.001">
+				<label for="waveform">Waveform:</label>
+				<select id="waveform">
+					<option value="sine">Sine</option>
+					<option value="square">Square</option>
+					<option value="sawtooth">Sawtooth</option>
+					<option value="triangle">Triangle</option>
+				</select>
+			</div>
+			<canvas id="canvas" width="400" height="100"></canvas>
+		</div>
+	</body>
+
+</html>

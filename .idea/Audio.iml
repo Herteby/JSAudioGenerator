@@ -8,5 +8,10 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="react" level="application" />
+    <orderEntry type="library" name="react-dom" level="application" />
+  </component>
+  <component name="SonarLintModuleSettings">
+    <option name="uniqueId" value="c480a7f2-df80-44c7-a539-3bd43e85a08b" />
   </component>
 </module>

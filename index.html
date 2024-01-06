@@ -1,19 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>Sound Generator</title>
+		<title>Sound Tester</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 		<script>
 			window.onload = function () {
 				let audioCtx
 				let oscillator
-				let gainNode // GainNode variable
+				let gainNode
 				let isAudioContextStarted = false
-
+				let waveform = 'sine'
 				const frequencySlider = document.getElementById('frequency')
-				const waveformSelector = document.getElementById('waveform')
+				const frequencyDisplay = document.getElementById('frequencyDisplay')
+				const waveformSelect = document.getElementById('waveformSelect')
+				const waveformDisplay = document.getElementById('waveformDisplay')
 				const volumeSlider = document.getElementById('volume')
-				const canvas = document.getElementById('canvas')
-				const ctx = canvas.getContext('2d')
 
 				function getLinearFrequency() {
 					return Math.pow(10, frequencySlider.value)
@@ -24,88 +25,93 @@
 						isAudioContextStarted = true
 						startAudioContext()
 					}
-					gainNode.gain.value = this.value // Update the gain value
+					gainNode.gain.value = this.value
+
+
 				})
 
 				function startAudioContext() {
-					audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+					audioCtx = new window.AudioContext()
 					oscillator = audioCtx.createOscillator()
-					gainNode = audioCtx.createGain() // Create the GainNode
+					gainNode = audioCtx.createGain()
 
-					oscillator.type = waveformSelector.value
+					oscillator.type = waveform
 					oscillator.frequency.setValueAtTime(getLinearFrequency(), audioCtx.currentTime)
-					oscillator.connect(gainNode).connect(audioCtx.destination) // Connect the oscillator to the gain node
-					gainNode.gain.value = volumeSlider.value // Set initial volume
+					oscillator.connect(gainNode).connect(audioCtx.destination)
+					gainNode.gain.value = volumeSlider.value
 
 					oscillator.start()
 				}
 
 				frequencySlider.addEventListener('input', function () {
 					const frequency = getLinearFrequency()
+					frequencyDisplay.innerHTML = `${frequency.toFixed(0)}Hz`
+
 					if (isAudioContextStarted) {
 						oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime)
 					}
-					drawWaveform(frequency, waveformSelector.value)
+					drawWaveform(frequency, waveform)
 				})
 
-				waveformSelector.addEventListener('change', function () {
-					if (isAudioContextStarted) {
-						oscillator.type = this.value
+				waveformSelect.addEventListener('click', function (event) {
+					if (event.target.tagName === 'BUTTON') {
+						waveform = event.target.getAttribute('data-waveform')
+						if (isAudioContextStarted) {
+							oscillator.type = waveform
+						}
+						drawWaveform(getLinearFrequency(), waveform)
+						waveformSelect.querySelector('.active').classList.remove('active')
+						event.target.classList.add('active')
 					}
-					drawWaveform(getLinearFrequency(), this.value)
 				})
 
 				function drawWaveform(frequency, type) {
-					ctx.clearRect(0, 0, canvas.width, canvas.height)
-					ctx.beginPath()
-					ctx.strokeStyle = 'cyan'
-					ctx.moveTo(0, canvas.height / 2)
+					waveformDisplay.innerHTML = ''
+					let path = document.createElementNS("http://www.w3.org/2000/svg", 'path')
+					let d = `M 0 ${waveformDisplay.height.baseVal.value / 2}`
 
-					const scaleFactor = frequency * 0.001
-					const amplitude = 40
-					let y
+					for (let i = 0; i < waveformDisplay.width.baseVal.value; i++) {
+						let x = (i * frequency) / waveformDisplay.width.baseVal.value / 100
+						let y
 
-					for (let i = 0; i < canvas.width; i++) {
 						switch (type) {
 							case 'sine':
-								y = canvas.height / 2 + Math.sin(i * scaleFactor) * amplitude
+								y = waveformDisplay.height.baseVal.value / 2 + Math.sin(x * 2 * Math.PI) * 40
 								break
 							case 'square':
-								y = (Math.sign(Math.sin(i * scaleFactor)) * amplitude) + canvas.height / 2
+								y = (Math.sign(Math.sin(x * 2 * Math.PI)) * 40) + waveformDisplay.height.baseVal.value / 2
 								break
 							case 'sawtooth':
-								y = ((i % (canvas.width / frequency)) / (canvas.width / frequency)) * amplitude * 2 - amplitude + canvas.height / 2
+								y = ((x % 1) * 80 - 40) + waveformDisplay.height.baseVal.value / 2
 								break
 							case 'triangle':
-								y = 2 * amplitude * Math.abs(2 * (i / (canvas.width / frequency) - Math.floor(i / (canvas.width / frequency) + 0.5))) - amplitude + canvas.height / 2
+								y = (2 * 40 * Math.abs((x % 1) * 2 - 1) - 40) + waveformDisplay.height.baseVal.value / 2
 								break
 						}
-						ctx.lineTo(i, y)
+
+						d += ` L ${i} ${y}`
 					}
-					ctx.stroke()
+
+					path.setAttribute('d', d)
+					path.setAttribute('stroke', `hsl(${frequency / 20000 * 360 / 6 * 5}, 100%, 50%)`)
+					path.setAttribute('fill', 'none')
+					waveformDisplay.appendChild(path)
 				}
 
-				// Initial drawing
-				drawWaveform(getLinearFrequency(), waveformSelector.value)
+				drawWaveform(getLinearFrequency(), waveform)
 			}
 
 		</script>
 		<style>
 			body {
-				font-family: Arial, sans-serif;
+				font-family: Helvetica, Arial, sans-serif;
 				display: flex;
 				flex-direction: column;
 				align-items: center;
 				justify-content: center;
 				height: 100vh;
-				margin: 0;
 				background-color: #444;
 				color: #fff;
-			}
-
-
-			div {
-				margin: 10px;
 			}
 
 			h1 {
@@ -119,55 +125,93 @@
 				display: flex;
 				flex-direction: column;
 				padding: 10px;
-				box-shadow: rgba(0, 0, 0, 0.25) 0px 6px 12px -2px, rgba(0, 0, 0, 0.3) 0 3px 7px -3px;
+				box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.3);
+				width: calc(100% - 20px);
+				max-width: 500px;
 			}
 
 			.control-group {
 				display: grid;
-				grid-template-columns: auto auto;
+				grid-template-columns: auto 1fr;
 				align-items: center;
 				gap: 10px;
-				margin-bottom: 10px;
+				margin: 0px 0px 10px 0px;
 			}
 
-			input[type=range] {
-				width: 300px;
-				margin: 5px;
+			#frequencyContainer {
+				display: flex;
 			}
 
-			select {
-				padding: 5px;
-				margin: 5px;
+			#frequencyDisplay {
+				width: 5.5em;
+				text-align: right;
+			}
+
+			input {
+				width: 100%;
+			}
+
+			#waveformSelect {
+				display: flex;
+			}
+
+			#waveformSelect button {
+				padding: 5px 10px;
 				border: none;
 				background-color: #333;
-				color: #fff;
-				border-radius: 5px;
+				cursor: pointer;
+				color: white;
+				margin: 0px 1px 0px 0px;
+				width: 100%;
 			}
 
-			canvas {
+			#waveformSelect button:first-child {
+				border-radius: 5px 0px 0px 5px;
+			}
+
+			#waveformSelect button:last-child {
+				border-radius: 0px 5px 5px 0px;
+			}
+
+			#waveformSelect button:hover {
+				background-color: #222;
+			}
+
+			#waveformSelect button.active {
+				background-color: #888;
+			}
+
+
+			#waveformDisplay {
 				border-radius: 5px;
 				background-color: #333;
+				height: 100px;
 			}
 
 		</style>
 	</head>
 	<body>
 		<div class="main">
-			<h1>Sound Generator</h1>
+			<h1>Sound Tester</h1>
 			<div class="control-group">
 				<label for="volume">Volume:</label>
 				<input type="range" id="volume" min="0" max="1" value="0" step="0.01">
 				<label for="frequency">Frequency:</label>
-				<input type="range" id="frequency" min="1" max="3" value="2.643856" step="0.001">
-				<label for="waveform">Waveform:</label>
-				<select id="waveform">
-					<option value="sine">Sine</option>
-					<option value="square">Square</option>
-					<option value="sawtooth">Sawtooth</option>
-					<option value="triangle">Triangle</option>
-				</select>
+				<div id="frequencyContainer">
+					<input type="range" id="frequency" min="1" max="4.3" value="2" step="0.001">
+					<div id="frequencyDisplay">1000Hz</div>
+				</div>
+				<label for="waveformSelect">Waveform:</label>
+				<div id="waveformSelect">
+					<button data-waveform="sine" class="active">Sine</button>
+					<button data-waveform="square">Square</button>
+					<button data-waveform="sawtooth">Sawtooth</button>
+					<button data-waveform="triangle">Triangle</button>
+				</div>
+
 			</div>
-			<canvas id="canvas" width="400" height="100"></canvas>
+			<svg id="waveformDisplay"></svg>
+
 		</div>
 	</body>
 
